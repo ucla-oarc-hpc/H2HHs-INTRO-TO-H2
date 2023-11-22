@@ -1,0 +1,132 @@
+# check if you have access to highp resources
+myresources
+
+# request an interactive session on a compute node:
+qrsh   # logout to terminate the session 
+
+# customize your interactive session, request:
+## runtime (e.g., 12 hours):
+qrsh -l h_rt=12:00:00
+
+## memory per core (e.g., 4GB):
+qrsh -l h_data=4G
+
+## entire node (all of its memory and cores)
+qrsh -l exclusive
+
+## session on owned nodes
+qrsh -l highp
+
+## access to a GPU card
+qrsh -l gpu,cuda=1
+
+
+## mutliple cores on the same node (e.g., 8 cores)
+qrsh -pe shared 8
+
+## mutliple cores across multiple nodes (e.g., 42 cores)
+qrsh -l dc* 42
+
+## interactive session for 1 hour with 4GB per core and 6 cores on the same node
+qrsh -l h_rt=1:00:00,h_data=4G -pe shared 6
+
+## interactive session for 2 hours with 3GB per core and 48 cores across any node
+qrsh -l h_rt=2:00:00,h_data=3G -pe dc* 48
+
+## request a session on a specific GPU card:
+qrsh -l gpu,P4,cuda=1,h_rt=3:00:00
+
+# To see all the CUDA GPU nodes (you may not have access to all) and their running jobs, issue at the command line:
+qhost -l cuda.0.name=* -q -j
+
+# Most centrally installed apps are available via `modulefiles` to look for a specifc software use `modules_lookup`, e.g.:
+modules_lookup -m R
+
+# Check whether R is in your path (and can be executed):
+which R
+
+# Now load a specific version of R and check if it is in your path (and can be executed):
+module load gcc/10.2.0; module load R/4.3.0
+which R
+
+ubmitting non interactive (batch) jobs
+
+# create a time-stamped directory, cd to it and copy in it the submission script: 
+# /u/local/apps/submit_scripts/submit_job.sh 
+timestamp=`date "+%F"` 
+mkdir $HOME/H2HH_$timestamp; cd $HOME/H2HH_$timestamp; pwd
+if [ ! -f "submit_job.sh" ]; then 
+   cp /u/local/apps/submit_scripts/submit_job.sh ./submit_job.sh
+else 
+   echo "File: submit_job.sh already present"; 
+fi 
+
+# check that the submission script has been copied in the current directory:
+ls -l submit_job.sh 
+
+# now submit the job: 
+qsub submit_job.sh 
+
+# is my job running? 
+myjobs 
+
+# save the job ID number into the variable $JOB_ID for later use:
+JOB_ID=`myjob | grep submit_job | awk '{print $1}'`
+
+# echo the JOB_ID:
+echo "JOB_ID=$JOB_ID"
+
+#first four jobs queuing (status "p" pending):
+qstat -s p | head -n 6
+
+# tot. no. of currently jobs pending 
+qstat -s p | grep qw | wc -l
+
+#Let's count the total number of compute cores requested using some handy command line expressions:
+count=1; qstat -s p | grep qw | awk -v count=$count '{count=count+$8} END {print "Total no. of cores requested: "count}'
+
+#first four jobs running (status "r" running):
+qstat -s r | head -n 6
+
+# tot. no. of jobs running
+qstat -s r | grep r | wc -l
+
+#Let's count the total number of compute cores currently running jobs using some handy command line expressions: 
+count=1 ; val=0 ; qstat -s r | grep @ | awk -v count=$count '{count=count+$9} END {print "Total no. of cores in use: "count}'
+
+# let's take a look at the submission script:
+cat submit_job.sh
+
+# let's take a look at the joblog file: 
+cat joblog.${JOB_ID}
+
+# look for sample submission scripts in:
+ls /u/local/apps/submit_scripts
+
+
+# Submit R jobs with R_job_submitter.sh:  
+
+# create temporary directory in your $SCRATCH and change directory to it:
+if [ ! -d $SCRATCH/R_tests ]; then mkdir $SCRATCH/R_tests; fi; cd $SCRATCH/R_tests 
+
+# copy the R file R-benchmark-25.R:
+if [ ! -f R-benchmark-25.R ]; then cp /u/local/apps/submit_scripts/R/R-benchmark-25.R ./;fi 
+
+# submit the R script R-benchmark-25.R to the queues using R_job_submitter.sh:
+/u/local/apps/submit_scripts/R_job_submitter.sh -n R-benchmark-25.R  -m 1 -t 1 -s 4 -v 4.0.2 -nts 
+JOB_ID2=`myjob | grep R-benchmar | awk '{print $1}'`
+
+# echo JOB_ID:
+echo "JOB_ID=$JOB_ID2"
+
+# check the submission status of the job(s):
+myjob
+
+# check if output has been generated:
+ls -ltr
+
+# let's check the joblog file (one of last two files in the list above): 
+cat R-benchmark-25.joblog.$JOB_ID2
+
+# let's check the output file: 
+cat  R-benchmark-25.out.$JOB_ID2
